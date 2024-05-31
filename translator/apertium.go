@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/misenkashari/go-translate/constants"
+	"github.com/kashari/go-translate/constants"
 )
 
 type ApertiumTranslator struct {

@@ -7,9 +7,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/misenkashari/go-translate/bread"
-	"github.com/misenkashari/go-translate/constants"
-	errs "github.com/misenkashari/go-translate/errors"
+	"github.com/kashari/go-translate/bread"
+	"github.com/kashari/go-translate/constants"
+	errs "github.com/kashari/go-translate/errors"
 )
 
 type LingueeTranslator struct {

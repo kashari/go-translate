@@ -9,7 +9,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/misenkashari/go-translate/constants"
+	"github.com/kashari/go-translate/constants"
 )
 
 type DeepLTranslator struct {

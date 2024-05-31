@@ -9,9 +9,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/misenkashari/go-translate/bread"
-	"github.com/misenkashari/go-translate/constants"
-	errs "github.com/misenkashari/go-translate/errors"
+	"github.com/kashari/go-translate/bread"
+	"github.com/kashari/go-translate/constants"
+	errs "github.com/kashari/go-translate/errors"
 )
 
 // Represents a translator using Google Translate under the hood.

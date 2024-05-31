@@ -1,4 +1,4 @@
-module github.com/misenkashari/go-translate
+module github.com/kashari/go-translate
 
 go 1.21.6
 
