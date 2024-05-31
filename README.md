@@ -5,7 +5,7 @@ Free to use Translation API for the most popular translation api's online.
 ## Installation
 
 ```bash
-go get github.com/misenkashari/go-translate
+go get github.com/kashari/go-translate
 ```
 
 ## Usage
@@ -17,7 +17,7 @@ package main
 
 import (
     "fmt"
-    "github.com/misenkashari/go-translate/translator"
+    "github.com/kashari/go-translate/translator"
 )
 
 func main() {
