@@ -1,4 +1,4 @@
-package errors
+package errs
 
 import (
 	"errors"
@@ -32,5 +32,15 @@ func LanguageNotSupportedExceptionError() {
 
 func InvalidPayloadKeyError() {
 	err := errors.New("invalid payload key")
+	log.Panic(err)
+}
+
+func TooLongTextError() {
+	err := errors.New("text is too long")
+	log.Panic(err)
+}
+
+func SameSourceTargetError() {
+	err := errors.New("source and target languages are the same")
 	log.Panic(err)
 }

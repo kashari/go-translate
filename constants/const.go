@@ -12,17 +12,18 @@ var BASE_URLS = map[string]string{
 	"PONS":                "https://en.pons.com/translate/",
 	"YANDEX":              "https://translate.yandex.net/api/{version}/tr.json/{endpoint}",
 	"LINGUEE":             "https://www.linguee.com/",
-	"MYMEMORY":            "http://api.mymemory.translated.net/get",
 	"QCRI":                "https://mt.qcri.org/api/v1/{endpoint}?",
-	"DEEPL":               "https://api.deepl.com/{version}/",
-	"DEEPL_FREE":          "https://api-free.deepl.com/{version}/",
+	"DEEPL":               "https://api.deepl.com/v2/",
+	"DEEPL_FREE":          "https://api-free.deepl.com/v2/",
 	"MICROSOFT_TRANSLATE": "https://api.cognitive.microsofttranslator.com/translate?api-version=3.0",
 	"PAPAGO":              "https://papago.naver.com/",
 	"PAPAGO_API":          "https://openapi.naver.com/v1/papago/n2mt",
-	"LIBRE":               "https://libretranslate.com/",
-	"LIBRE_FREE":          "https://libretranslate.de/",
+	"LIBRE":               "https://libretranslate.com/translate",
+	"LIBRE_FREE":          "https://libretranslate.de/translate",
 	"TENENT":              "https://tmt.tencentcloudapi.com",
 	"BAIDU":               "https://fanyi-api.baidu.com/api/trans/vip/translate",
+	"APERTIUM":            "https://www.apertium.org/apy/translate",
+	"MYMEMORY":            "https://api.mymemory.translated.net/get",
 }
 
 var GOOGLE_LANGUAGES_TO_CODES = map[string]string{

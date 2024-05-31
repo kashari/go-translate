@@ -1,4 +1,4 @@
-package googletranslate
+package translator
 
 import (
 	"errors"
@@ -7,12 +7,14 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/misenkashari/go-translate/bread"
 	"github.com/misenkashari/go-translate/constants"
+	errs "github.com/misenkashari/go-translate/errors"
 )
 
-// GoogleTranslator represents a translator using Google Translate under the hood.
+// Represents a translator using Google Translate under the hood.
 type GoogleTranslator struct {
 	baseURL            string
 	source             string
@@ -27,7 +29,7 @@ type GoogleTranslator struct {
 	client             *http.Client
 }
 
-// NewGoogleTranslator creates a new instance of GoogleTranslator.
+// Creates a new instance of GoogleTranslator.
 func NewGoogleTranslator(source, target string, proxies *url.URL) *GoogleTranslator {
 	return &GoogleTranslator{
 		baseURL:            constants.BASE_URLS["GOOGLE_TRANSLATE"],
@@ -44,9 +46,10 @@ func NewGoogleTranslator(source, target string, proxies *url.URL) *GoogleTransla
 	}
 }
 
-// Translate translates the given text from the source language to the target language.
+// Translates the given text from the source language to the target language.
 func (gt *GoogleTranslator) Translate(text string) (string, error) {
 	if len(strings.TrimSpace(text)) == 0 || len(text) > 5000 {
+		errs.TooLongTextError()
 		return "", errors.New("invalid input text")
 	}
 
@@ -95,20 +98,45 @@ func (gt *GoogleTranslator) TranslateFile(path string) (string, error) {
 	return gt.Translate(string(content))
 }
 
-// TranslateBatch translates a batch of texts.
+// Translates a batch of texts.
 func (gt *GoogleTranslator) TranslateBatch(batch []string) ([]string, error) {
-	var translations []string
-	for _, text := range batch {
-		translated, err := gt.Translate(text)
-		if err != nil {
-			return nil, err
-		}
-		translations = append(translations, translated)
+	var wg sync.WaitGroup
+	translations := make([]string, len(batch))
+	ch := make(chan struct {
+		index int
+		text  string
+		err   error
+	}, len(batch))
+
+	for i, text := range batch {
+		wg.Add(1)
+		go func(i int, text string) {
+			defer wg.Done()
+			translated, err := gt.Translate(text)
+			ch <- struct {
+				index int
+				text  string
+				err   error
+			}{i, translated, err}
+		}(i, text)
 	}
+
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+
+	for result := range ch {
+		if result.err != nil {
+			return nil, result.err
+		}
+		translations[result.index] = result.text
+	}
+
 	return translations, nil
 }
 
-// MapLanguageToCode maps languages to their corresponding codes
+// Maps languages to their corresponding codes
 func (bt *GoogleTranslator) MapLanguageToCode(languages ...string) (string, string) {
 	var mappedLanguages []string
 	for _, language := range languages {
