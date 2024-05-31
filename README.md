@@ -35,7 +35,7 @@ func main() {
 
 ## Supported Translators
 
-1. GoogleTranslator
+1. GoogleTranslator (Performance Pretty High)
 2. AzureTranslator (API Key required)
 3. ApertiumTranslator
 4. LingueeTranslator (API Key required)
