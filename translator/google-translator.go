@@ -3,6 +3,7 @@ package translator
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -90,12 +91,82 @@ func (gt *GoogleTranslator) Translate(text string) (string, error) {
 }
 
 // Translates the text from the given file path.
-func (gt *GoogleTranslator) TranslateFile(path string) (string, error) {
-	content, err := os.ReadFile(path)
+func (gt *GoogleTranslator) TranslateFile(path string) (*os.File, error) {
+	bytes, err := os.ReadFile(path)
 	if err != nil {
-		return "", err
+		log.Panic("File with given path not found")
 	}
-	return gt.Translate(string(content))
+
+	// Since Google supports up to 5000 chars we split the content into multiple 5000 char chunks
+	var chunks []string
+	for i := 0; i < len(bytes); i += 5000 {
+		end := i + 5000
+		if end > len(bytes) {
+			end = len(bytes)
+		}
+		chunks = append(chunks, string(bytes[i:end]))
+	}
+
+	translatedChunks := make([]string, len(chunks))
+	var wg sync.WaitGroup
+	errChan := make(chan error, 1) // Use a buffered channel with capacity 1 for errors
+	translatedChan := make(chan struct {
+		index      int
+		translated string
+	}, len(chunks))
+
+	for i, chunk := range chunks {
+		wg.Add(1)
+		go func(i int, chunk string) {
+			defer wg.Done()
+			translated, err := gt.Translate(chunk)
+			if err != nil {
+				select {
+				case errChan <- err:
+				default:
+				}
+				return
+			}
+			translatedChan <- struct {
+				index      int
+				translated string
+			}{index: i, translated: translated}
+		}(i, chunk)
+	}
+
+	go func() {
+		wg.Wait()
+		close(translatedChan)
+	}()
+
+	// Collect results
+	for result := range translatedChan {
+		translatedChunks[result.index] = result.translated
+	}
+
+	// Check if there was any error
+	select {
+	case err := <-errChan:
+		return nil, err
+	default:
+		// do nothing
+	}
+
+	translated := strings.Join(translatedChunks, "")
+	filename := fmt.Sprintf("translated_%s", GetFileNameFromPath(path))
+	file, err := os.Create(filename)
+	if err != nil {
+		log.Println("Error: ", err)
+		return nil, err
+	}
+	defer file.Close()
+
+	_, err = file.WriteString(translated)
+	if err != nil {
+		return nil, err
+	}
+
+	return file, nil
 }
 
 // Translates a batch of texts.
@@ -109,6 +180,31 @@ func (gt *GoogleTranslator) TranslateBatch(batch []string) ([]string, error) {
 	}, len(batch))
 
 	for i, text := range batch {
+		if len(text) > 5000 {
+			// split the text in chunks of 5000 characters
+			var chunks []string
+			for i := 0; i < len(text); i += 5000 {
+				end := i + 5000
+				if end > len(text) {
+					end = len(text)
+				}
+				chunks = append(chunks, text[i:end])
+			}
+			wg.Add(len(chunks))
+			for j, chunk := range chunks {
+				go func(i, j int, text string) {
+					defer wg.Done()
+					translated, err := gt.Translate(text)
+					ch <- struct {
+						index int
+						text  string
+						err   error
+					}{i, translated, err}
+				}(i, j, chunk)
+			}
+			continue
+		}
+
 		wg.Add(1)
 		go func(i int, text string) {
 			defer wg.Done()
@@ -174,4 +270,10 @@ func (bt *GoogleTranslator) GetSupportedLanguages() interface{} {
 // Checks if a language is supported
 func (bt *GoogleTranslator) IsLanguageSupported(language string) bool {
 	return language == "auto" || contains(bt.supportedLanguages, language) || bt.supportedLanguages[language] != ""
+}
+
+func GetFileNameFromPath(path string) string {
+	name := strings.TrimRight(path, "/")
+	name = strings.Split(name, "/")[len(strings.Split(name, "/"))-1]
+	return name
 }

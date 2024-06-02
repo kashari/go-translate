@@ -10,6 +10,7 @@ import (
 	internet "net/url"
 	"regexp"
 	"strings"
+	"sync"
 
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/charset"
@@ -57,17 +58,19 @@ type Root struct {
 	Error     error
 }
 
+func getDefaultClient() *http.Client {
+	return &http.Client{}
+}
+
 // Init a new HTTP client for use when the client doesn't want to use their own.
 var (
-	defaultClient = &http.Client{}
+	headersMu sync.RWMutex
+	Headers   = make(map[string]string)
 
 	debug = false
 
-	// Headers contains all HTTP headers to send
-	Headers = make(map[string]string)
-
-	// Cookies contains all HTTP cookies to send
-	Cookies = make(map[string]string)
+	cookiesMu sync.RWMutex
+	Cookies   = make(map[string]string)
 )
 
 // SetDebug sets the debug status
@@ -78,12 +81,16 @@ func SetDebug(d bool) {
 }
 
 // Header sets a new HTTP header
-func Header(n string, v string) {
+func Header(n, v string) {
+	headersMu.Lock()
+	defer headersMu.Unlock()
 	Headers[n] = v
 }
 
 // Cookie sets a cookie for http requests
-func Cookie(n string, v string) {
+func Cookie(n, v string) {
+	cookiesMu.Lock()
+	defer cookiesMu.Unlock()
 	Cookies[n] = v
 }
 
@@ -125,10 +132,15 @@ func GetWithClient(url string, client *http.Client) (string, error) {
 // setHeadersAndCookies helps build a request
 func setHeadersAndCookies(req *http.Request) {
 	// Set headers
+	headersMu.RLock()
+	defer headersMu.RUnlock()
 	for hName, hValue := range Headers {
 		req.Header.Set(hName, hValue)
 	}
+
 	// Set cookies
+	cookiesMu.RLock()
+	defer cookiesMu.RUnlock()
 	for cName, cValue := range Cookies {
 		req.AddCookie(&http.Cookie{
 			Name:  cName,
@@ -209,17 +221,17 @@ func PostWithClient(url string, bodyType string, body interface{}, client *http.
 
 // Post returns the HTML returned by the url as a string using the default HTTP client
 func Post(url string, bodyType string, body interface{}) (string, error) {
-	return PostWithClient(url, bodyType, body, defaultClient)
+	return PostWithClient(url, bodyType, body, getDefaultClient())
 }
 
 // PostForm is a convenience method for POST requests that
 func PostForm(url string, data internet.Values) (string, error) {
-	return PostWithClient(url, "application/x-www-form-urlencoded", data, defaultClient)
+	return PostWithClient(url, "application/x-www-form-urlencoded", data, getDefaultClient())
 }
 
 // Get returns the HTML returned by the url as a string using the default HTTP client
 func Get(url string) (string, error) {
-	return GetWithClient(url, defaultClient)
+	return GetWithClient(url, getDefaultClient())
 }
 
 // HTMLParse parses the HTML returning a start pointer to the DOM
