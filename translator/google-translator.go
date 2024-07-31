@@ -116,7 +116,14 @@ func (gt *GoogleTranslator) TranslateFile(path string) (*os.File, error) {
 		wg.Add(1)
 		go func(i int, chunk string) {
 			defer wg.Done()
-			translated, err := gt.Translate(chunk)
+
+			// Create a copy of the urlParams for each goroutine
+			urlParamsCopy := make(url.Values)
+			for k, v := range gt.urlParams {
+				urlParamsCopy[k] = v
+			}
+
+			translated, err := gt.TranslateWithParams(chunk, urlParamsCopy)
 			if err != nil {
 				select {
 				case errChan <- err:
@@ -155,6 +162,49 @@ func (gt *GoogleTranslator) TranslateFile(path string) (*os.File, error) {
 	}
 
 	return file, nil
+}
+
+// Translates the given text with the provided URL parameters.
+func (gt *GoogleTranslator) TranslateWithParams(text string, urlParams url.Values) (string, error) {
+	if len(strings.TrimSpace(text)) == 0 || len(text) > 5000 {
+		errs.TooLongTextError()
+		return "", errors.New("invalid input text")
+	}
+
+	if gt.source == gt.target {
+		return text, nil
+	}
+
+	urlParams.Set("tl", gt.target)
+	urlParams.Set("sl", gt.source)
+	urlParams.Set(gt.payloadKey, text)
+
+	resp, err := gt.client.Get(gt.baseURL + "?" + urlParams.Encode())
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := bread.GetWithClient(gt.baseURL+"?"+urlParams.Encode(), gt.client)
+	if err != nil {
+		return "", err
+	}
+
+	doc := bread.HTMLParse(body)
+	element := doc.Find(gt.elementTag, "class", gt.elementQuery["class"])
+	if element.Error != nil {
+		element = doc.Find(gt.elementTag, "class", gt.altElementQuery["class"])
+		if element.Error != nil {
+			return "", errors.New("translation not found")
+		}
+	}
+
+	translatedText := element.FullText()
+	if strings.TrimSpace(translatedText) == strings.TrimSpace(text) {
+		return text, nil
+	}
+
+	return translatedText, nil
 }
 
 // Translates a batch of texts.
