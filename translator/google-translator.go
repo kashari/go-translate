@@ -109,11 +109,8 @@ func (gt *GoogleTranslator) TranslateFile(path string) (*os.File, error) {
 
 	translatedChunks := make([]string, len(chunks))
 	var wg sync.WaitGroup
+	var mu sync.Mutex
 	errChan := make(chan error, 1) // Use a buffered channel with capacity 1 for errors
-	translatedChan := make(chan struct {
-		index      int
-		translated string
-	}, len(chunks))
 
 	for i, chunk := range chunks {
 		wg.Add(1)
@@ -127,29 +124,20 @@ func (gt *GoogleTranslator) TranslateFile(path string) (*os.File, error) {
 				}
 				return
 			}
-			translatedChan <- struct {
-				index      int
-				translated string
-			}{index: i, translated: translated}
+			mu.Lock()
+			translatedChunks[i] = translated
+			mu.Unlock()
 		}(i, chunk)
 	}
 
 	go func() {
 		wg.Wait()
-		close(translatedChan)
+		close(errChan)
 	}()
 
-	// Collect results
-	for result := range translatedChan {
-		translatedChunks[result.index] = result.translated
-	}
-
 	// Check if there was any error
-	select {
-	case err := <-errChan:
+	if err := <-errChan; err != nil {
 		return nil, err
-	default:
-		// do nothing
 	}
 
 	translated := strings.Join(translatedChunks, "")
